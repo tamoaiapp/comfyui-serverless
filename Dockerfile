@@ -1,15 +1,18 @@
-# Usa a mesma imagem dos pods — Python e custom nodes idênticos
-FROM runpod/comfyui:latest
+# =============================================================================
+# Worker ComfyUI — RunPod Serverless — pipeline FotoCardápio (Qwen-Image-Edit 2511)
+# Base: worker-comfyui oficial (handler + ComfyUI já embutidos e mantidos).
+# Modelos BAKED na imagem (não network volume) → roda em qualquer datacenter,
+# máximo de GPUs no pool. Imagem ~30 GB; RunPod faz cache nos workers.
+# =============================================================================
+FROM runpod/worker-comfyui:5.8.5-base
+# Se a build/run acusar nó faltando (TextEncodeQwenImageEditPlus), suba a tag acima.
 
-# Instala o SDK serverless do RunPod
-RUN pip install --no-cache-dir "runpod>=1.7.0"
+# Baixa os modelos Qwen-Image-Edit-2511 + LoRAs pra dentro da imagem (/comfyui/models)
+COPY download_models.sh /tmp/download_models.sh
+RUN chmod +x /tmp/download_models.sh && /tmp/download_models.sh
 
-# Copia o handler
-COPY handler.py /handler.py
-
-# COMFY_HOME aponta para o volume de rede em /workspace
-ENV COMFY_HOME=/workspace/runpod-slim/ComfyUI
-
-# ENTRYPOINT (não CMD) garante que o handler roda direto,
-# ignorando o /start.sh da imagem base
-ENTRYPOINT ["python3", "/handler.py"]
+# Sanidade no log do build
+RUN echo "=== loras ===" && ls -lh /comfyui/models/loras/ 2>/dev/null; \
+    echo "=== diffusion_models ===" && ls -lh /comfyui/models/diffusion_models/ 2>/dev/null; \
+    echo "=== text_encoders ===" && ls -lh /comfyui/models/text_encoders/ 2>/dev/null; \
+    echo "=== vae ===" && ls -lh /comfyui/models/vae/ 2>/dev/null

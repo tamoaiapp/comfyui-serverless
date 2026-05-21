@@ -1,0 +1,2 @@
+# Scripts shell sempre com LF (senão o shebang quebra no container Linux)
+*.sh text eol=lf
