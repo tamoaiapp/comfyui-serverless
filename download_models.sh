@@ -11,7 +11,7 @@ URL_CLIP="$HF/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoder
 URL_VAE="$HF/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
 URL_LIGHTNING="$HF/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors"
 
-# LoRA treinada (hospedada como GitHub Release asset deste prÃ³prio repo â€” pÃºblico)
+# LoRA treinada (GitHub Release asset deste repo - publico)
 URL_CUSTOM_LORA="https://github.com/tamoaiapp/comfyui-serverless/releases/download/models-v1/tamowork_qwen_edit_2511_lora_v1.safetensors"
 URL_ACC_LORA="https://github.com/tamoaiapp/comfyui-serverless/releases/download/models-v1/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"
 
