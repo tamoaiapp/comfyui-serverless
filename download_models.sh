@@ -14,6 +14,7 @@ URL_LIGHTNING="$HF/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Ima
 # LoRA treinada (GitHub Release asset deste repo - publico)
 URL_CUSTOM_LORA="https://github.com/tamoaiapp/comfyui-serverless/releases/download/models-v1/tamowork_qwen_edit_2511_lora_v1.safetensors"
 URL_ACC_LORA="https://github.com/tamoaiapp/comfyui-serverless/releases/download/models-v1/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"
+URL_CAL_LORA="https://github.com/tamoaiapp/comfyui-serverless/releases/download/models-v1/tamowork_calcados_qwen_edit_2511_lora_v1.safetensors"
 
 dl () {
   mkdir -p "$(dirname "$2")"
@@ -27,5 +28,6 @@ dl "$URL_VAE"         "$COMFY_DIR/models/vae/qwen_image_vae.safetensors"
 dl "$URL_LIGHTNING"   "$COMFY_DIR/models/loras/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors"
 dl "$URL_CUSTOM_LORA" "$COMFY_DIR/models/loras/tamowork_qwen_edit_2511_lora_v1.safetensors"
 dl "$URL_ACC_LORA" "$COMFY_DIR/models/loras/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"
+dl "$URL_CAL_LORA" "$COMFY_DIR/models/loras/tamowork_calcados_qwen_edit_2511_lora_v1.safetensors"
 
 echo "OK â€” modelos prontos em $COMFY_DIR/models"
