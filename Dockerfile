@@ -11,7 +11,7 @@ FROM runpod/worker-comfyui:5.8.5-base
 # e o HF estrangula download sem token (~KB/s), o que estourava o tempo. hf_transfer
 # da ~50MB/s constante e mantem o build bem dentro do limite.
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
-RUN pip install --no-cache-dir -q "huggingface_hub[hf_transfer]"
+RUN python3 -m pip install --no-cache-dir -q "huggingface_hub[hf_transfer]"
 
 # Baixa os modelos Qwen-Image-Edit-2511 + LoRAs pra dentro da imagem (/comfyui/models)
 COPY download_models.sh /tmp/download_models.sh

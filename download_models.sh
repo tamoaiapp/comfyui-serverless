@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 # Baixa os modelos do pipeline Qwen-Image-Edit-2511 + LoRAs pras pastas do ComfyUI.
-# Modelos grandes (UNET/CLIP/VAE/Lightning) via huggingface-cli + hf_transfer (rapido,
+# Modelos grandes (UNET/CLIP/VAE/Lightning) via huggingface_hub + hf_transfer (rapido,
 # ~50MB/s constante) pra caber no limite de 30min do build do RunPod. wget sem token
 # estrangulava no HF e estourava o tempo. LoRAs custom vem de GitHub Release (ja rapido).
 set -euo pipefail
 
 COMFY_DIR="${COMFY_DIR:-/comfyui}"
-TMP="/tmp/hfdl"
+# Pasta temporaria no MESMO filesystem do destino -> mover vira rename (instantaneo, sem dobrar disco).
+HFTMP="$COMFY_DIR/.hfcache"
+# Usa python3 (ou python) direto; nao depende do CLI 'huggingface-cli' estar no PATH (exit 127).
+PYBIN="$(command -v python3 || command -v python)"
 
 # Baixa um arquivo do HuggingFace (repo, caminho-no-repo, destino) com hf_transfer.
-# Usa --local-dir (arquivo real, sem duplicar no cache) e move pro destino (mesmo fs = rename).
 hf_dl () {
   echo ">>> [HF] baixando $(basename "$3")"
-  huggingface-cli download "$1" "$2" --local-dir "$TMP"
-  mkdir -p "$(dirname "$3")"
-  mv -f "$TMP/$2" "$3"
+  "$PYBIN" - "$1" "$2" "$3" "$HFTMP" <<'PY'
+import sys, os, shutil
+from huggingface_hub import hf_hub_download
+repo, path, dest, tmp = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+src = hf_hub_download(repo_id=repo, filename=path, local_dir=tmp)
+os.makedirs(os.path.dirname(dest), exist_ok=True)
+shutil.move(src, dest)
+PY
 }
 
 # Baixa um asset publico (url, destino) - GitHub Release, rapido.
@@ -34,5 +41,5 @@ dl "$GH/tamowork_qwen_edit_2511_lora_v1.safetensors"          "$COMFY_DIR/models
 dl "$GH/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"      "$COMFY_DIR/models/loras/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"
 dl "$GH/tamowork_calcados_qwen_edit_2511_lora_v1.safetensors" "$COMFY_DIR/models/loras/tamowork_calcados_qwen_edit_2511_lora_v1.safetensors"
 
-rm -rf "$TMP"
+rm -rf "$HFTMP"
 echo "OK - modelos prontos em $COMFY_DIR/models"
