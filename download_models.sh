@@ -36,6 +36,13 @@ hf_dl "Comfy-Org/Qwen-Image_ComfyUI"      "split_files/text_encoders/qwen_2.5_vl
 hf_dl "Comfy-Org/Qwen-Image_ComfyUI"      "split_files/vae/qwen_image_vae.safetensors"                            "$COMFY_DIR/models/vae/qwen_image_vae.safetensors"
 hf_dl "lightx2v/Qwen-Image-Edit-2511-Lightning" "Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors"     "$COMFY_DIR/models/loras/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors"
 
+# ----- FLUX.2 Klein 9B (base, fp8) — motor "Premium" alternativo ao Qwen --------
+# Licenca non-commercial; baixado via HF_TOKEN. Diffusion (9.57GB) vem do BFL gated.
+# Text encoder (8.66GB) e VAE (340MB) vem do mirror Comfy-Org (sem gate).
+hf_dl "black-forest-labs/FLUX.2-klein-base-9b-fp8"          "flux-2-klein-base-9b-fp8.safetensors"                      "$COMFY_DIR/models/diffusion_models/flux-2-klein-base-9b-fp8.safetensors"
+hf_dl "Comfy-Org/vae-text-encorder-for-flux-klein-9b"       "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors"  "$COMFY_DIR/models/text_encoders/qwen_3_8b_fp8mixed.safetensors"
+hf_dl "Comfy-Org/vae-text-encorder-for-flux-klein-9b"       "split_files/vae/flux2-vae.safetensors"                     "$COMFY_DIR/models/vae/flux2-vae.safetensors"
+
 GH="https://github.com/tamoaiapp/comfyui-serverless/releases/download/models-v1"
 dl "$GH/tamowork_qwen_edit_2511_lora_v1.safetensors"          "$COMFY_DIR/models/loras/tamowork_qwen_edit_2511_lora_v1.safetensors"
 dl "$GH/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"      "$COMFY_DIR/models/loras/tamowork_acc_qwen_edit_2511_lora_v1.safetensors"
