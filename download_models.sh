@@ -24,11 +24,18 @@ shutil.move(src, dest)
 PY
 }
 
-# Baixa um asset publico (url, destino) - GitHub Release, rapido.
+# Baixa um asset publico (url, destino) - usa curl com retry e VERIFICA size (>1MB)
+# pra detectar download truncado/HTML de erro do CDN (wget -q -O nao detecta).
 dl () {
   mkdir -p "$(dirname "$2")"
   echo ">>> baixando $(basename "$2")"
-  wget -q -O "$2" "$1"
+  curl -fSL --retry 5 --retry-delay 5 --retry-max-time 1800 -o "$2" "$1"
+  local sz=$(stat -c%s "$2" 2>/dev/null || stat -f%z "$2" 2>/dev/null)
+  if [ -z "$sz" ] || [ "$sz" -lt 1048576 ]; then
+    echo "ERRO: $2 ficou pequeno ($sz bytes), download falhou"
+    exit 1
+  fi
+  echo "    OK $(($sz/1048576)) MB"
 }
 
 hf_dl "Comfy-Org/Qwen-Image-Edit_ComfyUI" "split_files/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors" "$COMFY_DIR/models/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors"
