@@ -24,14 +24,15 @@ shutil.move(src, dest)
 PY
 }
 
-# Baixa um asset publico (url, destino) - usa curl com retry e VERIFICA size (>1MB)
-# pra detectar download truncado/HTML de erro do CDN (wget -q -O nao detecta).
+# Baixa um asset publico (url, destino) - wget com retry + VERIFICA size pra detectar
+# download truncado/HTML de erro do CDN (default wget -q nao detecta isso, exit 0 com
+# arquivo parcial). A imagem worker-comfyui:5.8.5-base nao tem curl, so wget.
 dl () {
   mkdir -p "$(dirname "$2")"
   echo ">>> baixando $(basename "$2")"
-  curl -fSL --retry 5 --retry-delay 5 --retry-max-time 1800 -o "$2" "$1"
-  local sz=$(stat -c%s "$2" 2>/dev/null || stat -f%z "$2" 2>/dev/null)
-  if [ -z "$sz" ] || [ "$sz" -lt 1048576 ]; then
+  wget -q --tries=5 --waitretry=10 --timeout=120 --read-timeout=120 -O "$2" "$1"
+  local sz=$(stat -c%s "$2" 2>/dev/null || stat -f%z "$2" 2>/dev/null || echo 0)
+  if [ "$sz" -lt 1048576 ]; then
     echo "ERRO: $2 ficou pequeno ($sz bytes), download falhou"
     exit 1
   fi
