@@ -7,6 +7,13 @@
 FROM runpod/worker-comfyui:5.8.5-base
 # Se a build/run acusar nó faltando (TextEncodeQwenImageEditPlus), suba a tag acima.
 
+# Atualiza ComfyUI core pra nightly: o 5.8.5-base vem com ComfyUI ~0.7.x, sem os
+# nodes nativos do Flux2 (EmptyFlux2LatentImage, Flux2Scheduler). git pull no
+# repo cloned pelo comfy-cli leva pro master atual, que ja suporta Flux2.
+# O comfy-cli faz "git clone" em /comfyui — confirmado no Dockerfile upstream.
+RUN cd /comfyui && git fetch --depth=1 origin master && git reset --hard origin/master && \
+    pip install --no-cache-dir -r requirements.txt --quiet || true
+
 # Acelera o download dos modelos grandes do HF. O build do RunPod tem limite de 30min
 # e o HF estrangula download sem token (~KB/s), o que estourava o tempo. hf_transfer
 # da ~50MB/s constante e mantem o build bem dentro do limite.
