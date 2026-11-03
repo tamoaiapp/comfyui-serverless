@@ -6,8 +6,8 @@ const { spawnSync } = require('node:child_process');
 
 const source = fs.readFileSync(path.join(__dirname, '../download_models.sh'), 'utf8');
 const mocked = source
-  .replace(/^hf_dl \(\) \{[\s\S]*?^\}/m, 'hf_dl () { echo "MODEL $3"; }')
-  .replace(/^dl \(\) \{[\s\S]*?^\}/m, 'dl () { echo "MODEL $2"; }')
+  .replace(/^hf_dl \(\) \{[\s\S]*?^\}/m, 'hf_dl () { echo "CACHE $HFTMP"; echo "MODEL $3"; }')
+  .replace(/^dl \(\) \{[\s\S]*?^\}/m, 'dl () { echo "CACHE $HFTMP"; echo "MODEL $2"; }')
   .replace(/^PYBIN=.*$/m, 'PYBIN=unused')
   .replace(/^rm -rf "\$HFTMP"$/m, ':');
 // A dry run must never download weights or remove a model directory.
@@ -27,7 +27,16 @@ try {
   }
   const invalid = spawnSync(bash, [script.replaceAll('\\', '/'), 'invalid'], { encoding: 'utf8' });
   assert.equal(invalid.status, 2);
-  console.log('All 9 model groups and invalid-group handling passed; no weights downloaded.');
+  const dockerfile = fs.readFileSync(path.join(__dirname, '../Dockerfile'), 'utf8');
+  const stage = dockerfile.match(/FROM runtime_base AS model_downloads\r?\nRUN ([\s\S]*?)\r?\n\r?\nFROM runtime_base/);
+  assert.ok(stage, 'Parallel download stage must exist');
+  const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+  const command = stage[1].replace(/\\\r?\n/g, ' ').replace('/tmp/download_models.sh', quote(bash.replaceAll('\\', '/')) + ' ' + quote(script.replaceAll('\\', '/')));
+  const parallel = spawnSync(bash, ['-c', command], { encoding: 'utf8' });
+  assert.equal(parallel.status, 0, parallel.stderr);
+  assert.equal((parallel.stdout.match(/^MODEL /gm) || []).length, 10);
+  assert.equal(new Set(parallel.stdout.match(/^CACHE .+$/gm)).size, 8, 'Parallel downloads must have independent caches');
+  console.log('All model groups, parallel routing and isolated caches passed; no weights downloaded.');
 } finally {
   fs.unlinkSync(script);
   fs.rmdirSync(directory);

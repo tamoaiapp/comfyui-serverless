@@ -15,7 +15,7 @@ wanted () { [[ "$MODEL_GROUP" == "all" || "$MODEL_GROUP" == "$1" ]]; }
 
 COMFY_DIR="${COMFY_DIR:-/comfyui}"
 # Pasta temporaria no MESMO filesystem do destino -> mover vira rename (instantaneo, sem dobrar disco).
-HFTMP="$COMFY_DIR/.hfcache"
+HFTMP="$COMFY_DIR/.hfcache/$MODEL_GROUP"
 # Usa python3 (ou python) direto; nao depende do CLI 'huggingface-cli' estar no PATH (exit 127).
 PYBIN="$(command -v python3 || command -v python)"
 

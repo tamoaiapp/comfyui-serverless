@@ -4,7 +4,7 @@
 # Modelos BAKED na imagem (não network volume) → roda em qualquer datacenter,
 # máximo de GPUs no pool. Imagem ~30 GB; RunPod faz cache nos workers.
 # =============================================================================
-FROM runpod/worker-comfyui:5.8.5-base
+FROM runpod/worker-comfyui:5.8.5-base AS runtime_base
 
 # Freeze core compatibility to the day of the last successful production build.
 ARG COMFYUI_REF=0b04660ba329ce643f29cabf4905aa9b5a71c6f8
@@ -23,18 +23,30 @@ RUN cd /comfyui && git fetch --depth=1 origin "$COMFYUI_REF" && git reset --hard
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 RUN python3 -m pip install --no-cache-dir -q "huggingface_hub[hf_transfer]"
 
-# Baixa os modelos Qwen-Image-Edit-2511 + LoRAs pra dentro da imagem (/comfyui/models)
+# Download independent models concurrently, with isolated temporary caches.
 COPY download_models.sh /tmp/download_models.sh
-# Separate model layers let Docker retry a failed pull without downloading every model again.
 RUN chmod +x /tmp/download_models.sh
-RUN /tmp/download_models.sh qwen_unet
-RUN /tmp/download_models.sh qwen_clip
-RUN /tmp/download_models.sh qwen_vae
-RUN /tmp/download_models.sh lightning
-RUN /tmp/download_models.sh flux_unet
-RUN /tmp/download_models.sh flux_clip
-RUN /tmp/download_models.sh flux_vae
-RUN /tmp/download_models.sh custom_loras
+
+FROM runtime_base AS model_downloads
+RUN set -eu; \
+    pids=""; \
+    for model_group in qwen_unet qwen_clip qwen_vae lightning flux_unet flux_clip flux_vae custom_loras; do \
+      /tmp/download_models.sh "$model_group" & pids="$pids $!"; \
+    done; \
+    result=0; \
+    for model_pid in $pids; do wait "$model_pid" || result=1; done; \
+    exit "$result"
+
+FROM runtime_base
+# Each COPY creates a separate model layer, keeping pulls independently retryable.
+COPY --from=model_downloads /comfyui/models/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors /comfyui/models/diffusion_models/
+COPY --from=model_downloads /comfyui/models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors /comfyui/models/text_encoders/
+COPY --from=model_downloads /comfyui/models/vae/qwen_image_vae.safetensors /comfyui/models/vae/
+COPY --from=model_downloads /comfyui/models/loras/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors /comfyui/models/loras/
+COPY --from=model_downloads /comfyui/models/diffusion_models/flux-2-klein-base-9b-fp8.safetensors /comfyui/models/diffusion_models/
+COPY --from=model_downloads /comfyui/models/text_encoders/qwen_3_8b_fp8mixed.safetensors /comfyui/models/text_encoders/
+COPY --from=model_downloads /comfyui/models/vae/flux2-vae.safetensors /comfyui/models/vae/
+COPY --from=model_downloads /comfyui/models/loras/tamowork_*.safetensors /comfyui/models/loras/
 
 # Sanidade no log do build
 RUN echo "=== loras ===" && ls -lh /comfyui/models/loras/ 2>/dev/null; \
