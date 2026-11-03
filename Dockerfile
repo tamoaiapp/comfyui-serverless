@@ -10,9 +10,7 @@ FROM runpod/worker-comfyui:5.8.5-base AS runtime_base
 ARG COMFYUI_REF=0b04660ba329ce643f29cabf4905aa9b5a71c6f8
 # Se a build/run acusar nó faltando (TextEncodeQwenImageEditPlus), suba a tag acima.
 
-# Atualiza ComfyUI core pra nightly: o 5.8.5-base vem com ComfyUI ~0.7.x, sem os
-# nodes nativos do Flux2 (EmptyFlux2LatentImage, Flux2Scheduler). git pull no
-# repo cloned pelo comfy-cli leva pro master atual, que ja suporta Flux2.
+# The base predates Flux2 nodes; use the compatible production core above.
 # O comfy-cli faz "git clone" em /comfyui — confirmado no Dockerfile upstream.
 RUN cd /comfyui && git fetch --depth=1 origin "$COMFYUI_REF" && git reset --hard FETCH_HEAD && \
     pip install --no-cache-dir -r requirements.txt --quiet
@@ -27,26 +25,36 @@ RUN python3 -m pip install --no-cache-dir -q "huggingface_hub[hf_transfer]"
 COPY download_models.sh /tmp/download_models.sh
 RUN chmod +x /tmp/download_models.sh
 
-FROM runtime_base AS model_downloads
-RUN set -eu; \
+FROM runtime_base
+# Keep download staging out of exported build layers. Exporting a second complete
+# copy of all weights as an intermediate-stage cache exceeded RunPod's 30m limit.
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    set -eu; \
     pids=""; \
     for model_group in qwen_unet qwen_clip qwen_vae lightning flux_unet flux_clip flux_vae custom_loras; do \
-      /tmp/download_models.sh "$model_group" & pids="$pids $!"; \
+      COMFY_DIR=/model-cache /tmp/download_models.sh "$model_group" & pids="$pids $!"; \
     done; \
     result=0; \
     for model_pid in $pids; do wait "$model_pid" || result=1; done; \
-    exit "$result"
+    test "$result" -eq 0; \
+    mkdir -p /comfyui/models/diffusion_models; \
+    cp /model-cache/models/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors /comfyui/models/diffusion_models/
 
-FROM runtime_base
-# Each COPY creates a separate model layer, keeping pulls independently retryable.
-COPY --from=model_downloads /comfyui/models/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors /comfyui/models/diffusion_models/
-COPY --from=model_downloads /comfyui/models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors /comfyui/models/text_encoders/
-COPY --from=model_downloads /comfyui/models/vae/qwen_image_vae.safetensors /comfyui/models/vae/
-COPY --from=model_downloads /comfyui/models/loras/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors /comfyui/models/loras/
-COPY --from=model_downloads /comfyui/models/diffusion_models/flux-2-klein-base-9b-fp8.safetensors /comfyui/models/diffusion_models/
-COPY --from=model_downloads /comfyui/models/text_encoders/qwen_3_8b_fp8mixed.safetensors /comfyui/models/text_encoders/
-COPY --from=model_downloads /comfyui/models/vae/flux2-vae.safetensors /comfyui/models/vae/
-COPY --from=model_downloads /comfyui/models/loras/tamowork_*.safetensors /comfyui/models/loras/
+# Each RUN creates a separate model layer, keeping pulls independently retryable.
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    mkdir -p /comfyui/models/text_encoders && cp /model-cache/models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors /comfyui/models/text_encoders/
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    mkdir -p /comfyui/models/vae && cp /model-cache/models/vae/qwen_image_vae.safetensors /comfyui/models/vae/
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    mkdir -p /comfyui/models/loras && cp /model-cache/models/loras/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors /comfyui/models/loras/
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    cp /model-cache/models/diffusion_models/flux-2-klein-base-9b-fp8.safetensors /comfyui/models/diffusion_models/
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    cp /model-cache/models/text_encoders/qwen_3_8b_fp8mixed.safetensors /comfyui/models/text_encoders/
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    cp /model-cache/models/vae/flux2-vae.safetensors /comfyui/models/vae/
+RUN --mount=type=cache,id=tamowork-models-v1,target=/model-cache,sharing=locked \
+    cp /model-cache/models/loras/tamowork_*.safetensors /comfyui/models/loras/
 
 # Sanidade no log do build
 RUN echo "=== loras ===" && ls -lh /comfyui/models/loras/ 2>/dev/null; \

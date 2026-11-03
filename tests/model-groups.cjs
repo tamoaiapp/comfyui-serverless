@@ -28,7 +28,7 @@ try {
   const invalid = spawnSync(bash, [script.replaceAll('\\', '/'), 'invalid'], { encoding: 'utf8' });
   assert.equal(invalid.status, 2);
   const dockerfile = fs.readFileSync(path.join(__dirname, '../Dockerfile'), 'utf8');
-  const stage = dockerfile.match(/FROM runtime_base AS model_downloads\r?\nRUN ([\s\S]*?)\r?\n\r?\nFROM runtime_base/);
+  const stage = dockerfile.match(/RUN --mount=type=cache[^\r\n]*\r?\n([\s\S]*?test "\$result" -eq 0);/);
   assert.ok(stage, 'Parallel download stage must exist');
   const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
   const command = stage[1].replace(/\\\r?\n/g, ' ').replace('/tmp/download_models.sh', quote(bash.replaceAll('\\', '/')) + ' ' + quote(script.replaceAll('\\', '/')));
